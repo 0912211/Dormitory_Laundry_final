@@ -25,7 +25,6 @@ def _get_setting(name, default=None):
     return default if value is None else value
 
 # 可透過環境變數或 Streamlit Secrets 指定雲端 PostgreSQL
-# 可透過環境變數或 Streamlit Secrets 指定雲端 PostgreSQL
 DATABASE_URL = _get_setting("DATABASE_URL")
 
 # 🛡️ 自動防呆：如果讀到的字串包含錯誤參數，直接在程式中修正它！
@@ -49,6 +48,10 @@ ADMIN_USERNAMES = _parse_names(_get_setting("ADMIN_USERNAMES"))
 
 # 網站對外網址，用來產生每台洗衣機的 QR Code
 APP_BASE_URL = str(_get_setting("APP_BASE_URL", "http://localhost:8501")).strip().rstrip("/")
+
+# 🆕 加上 Gmail 寄信設定（會自動從環境變數或 Streamlit Secrets 讀取）
+GMAIL_USER = str(_get_setting("GMAIL_USER", "")).strip()
+GMAIL_APP_PASSWORD = str(_get_setting("GMAIL_APP_PASSWORD", "")).strip()
 
 DEFAULT_MACHINE_COUNT = 3
 MIN_WASH_TIME = 15
