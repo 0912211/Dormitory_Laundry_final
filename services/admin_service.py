@@ -134,5 +134,8 @@ def list_users(admin_id: int):
         if not _is_admin(db, admin_id):
             return []
         users = db.scalars(select(User).order_by(User.id)).all()
-        return [dict(id=u.id, username=u.username, created_at=u.created_at,
+        return [dict(id=u.id, 
+                     username=u.username, 
+                     email=u.email,  # 👈 加上這行，將 email 帶入回傳字典中
+                     created_at=u.created_at,
                      is_admin=u.username.lower() in ADMIN_USERNAMES) for u in users]
