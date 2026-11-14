@@ -23,19 +23,31 @@ def _verify_password(password: str, stored: str) -> bool:
     except (ValueError, TypeError):
         return False
 
-def register(username: str, password: str):
+# 🆕 加上 email 參數
+def register(username: str, password: str, email: str):
     username = (username or "").strip()
+    email = (email or "").strip()
+    
     if len(username) < 3:
         return False, "帳號至少需要 3 個字元。"
     if len(username) > 50:
         return False, "帳號不可超過 50 個字元。"
+    if not email:
+        return False, "請輸入電子信箱（用於接收洗衣完成通知）。"
     if len(password or "") < MIN_PASSWORD_LENGTH:
         return False, f"密碼至少需要 {MIN_PASSWORD_LENGTH} 個字元。"
+        
     with SessionLocal() as db:
         exists = db.scalar(select(User).where(User.username == username))
         if exists:
             return False, "這個帳號已經被使用。"
-        db.add(User(username=username, password_hash=_hash_password(password)))
+            
+        # 🆕 建立使用者時將 email 一起寫入資料庫
+        db.add(User(
+            username=username, 
+            password_hash=_hash_password(password),
+            email=email
+        ))
         db.commit()
     return True, "註冊成功，請登入。"
 
