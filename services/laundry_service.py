@@ -4,9 +4,9 @@ from database.db import SessionLocal
 from models.machine import Machine
 from models.laundry_cycle import LaundryCycle
 from models.reservation import Reservation
-from models.user import User  # 🆕 匯入 User 模型以取得註冊的 email
+from models.user import User
 from services.clock import now_local
-from services.notification_service import notify_completion  # 🆕 匯入通知服務
+from services.notification_service import notify_completion
 
 def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
     now = now_local()
@@ -28,7 +28,6 @@ def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
             Reservation.machine_id == machine_id, Reservation.status == "booked",
             Reservation.start_time < end, Reservation.end_time > now,
         )).all()
-        # 若有預約，只有該預約者能在預約時段內開始，且洗衣須在預約結束前完成
         if bookings:
             allowed = any(b.user_id == user_id and b.start_time <= now and end <= b.end_time for b in bookings)
             if not allowed:
@@ -58,33 +57,44 @@ def get_user_history(user_id: int):
                      start_time=r.start_time, end_time=r.end_time, status=r.status,
                      collected_at=r.collected_at) for r in rows]
 
-def get_user_active_cycles(user_id: int):
+def update_expired_cycles():
+    """🌐 全域自動檢查：掃描資料庫中所有逾期的 washing 行程，改為 finished 並發送 Gmail 通知"""
     now = now_local()
     with SessionLocal() as db:
         rows = db.scalars(select(LaundryCycle).where(
-            LaundryCycle.user_id == user_id, LaundryCycle.status.in_(["washing", "finished"])
+            LaundryCycle.status == "washing"
         )).all()
         
-        # 🆕 自動檢查：若時間已到但狀態還是 washing，則更新為 finished 並發送通知
         updated = False
         for r in rows:
-            if r.status == "washing" and now >= r.end_time:
+            if now >= r.end_time:
                 r.status = "finished"
                 updated = True
                 
-                # 取得使用者信箱與洗衣機名稱
+                # 取得該筆紀錄對應的使用者與洗衣機
                 user = db.get(User, r.user_id)
                 machine = db.get(Machine, r.machine_id)
                 machine_name = machine.name if machine else str(r.machine_id)
                 
-                # 若該使用者有註冊 Email，則發送 Gmail 通知
+                # 若該使用者有註冊 Email，發送 Gmail 通知
                 if user and user.email:
                     message = f"您的洗衣機（編號 {machine_name}）已經洗好囉！請盡快前往拿取。"
+                    print(f"📧 準備寄送通知給: {user.email}")
                     notify_completion(message, recipient_email=user.email)
+                else:
+                    print(f"⚠️ 使用者 ID {r.user_id} 沒有設定信箱，略過寄信。")
         
         if updated:
             db.commit()
-            
+
+def get_user_active_cycles(user_id: int):
+    # 先呼叫全域檢查，確保每次有人看活動狀態時，全系統的逾期狀態都能同步更新
+    update_expired_cycles()
+    
+    with SessionLocal() as db:
+        rows = db.scalars(select(LaundryCycle).where(
+            LaundryCycle.user_id == user_id, LaundryCycle.status.in_(["washing", "finished"])
+        )).all()
         names = {m.id: m.name for m in db.scalars(select(Machine)).all()}
         return [dict(id=r.id, machine_id=r.machine_id, machine_name=names.get(r.machine_id, str(r.machine_id)),
                      status=r.status, end_time=r.end_time) for r in rows]
