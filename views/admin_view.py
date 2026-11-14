@@ -124,9 +124,13 @@ def _users_tab(admin_controller, admin_id):
     st.subheader(f"使用者（共 {len(users)} 人）")
     if users:
         st.markdown(md_table([{
-            "編號": u["id"], "帳號": u["username"], "建立時間": _fmt(u["created_at"]),
+            "編號": u["id"], 
+            "帳號": u["username"], 
+            "電子信箱": u.get("email") or "未填寫",  # 👈 加上這行，把信箱顯示出來
+            "建立時間": _fmt(u["created_at"]),
             "管理員": "是" if u["is_admin"] else "",
-        } for u in users], ["編號", "帳號", "建立時間", "管理員"], escape_columns=("帳號",)))
+        } for u in users], ["編號", "帳號", "電子信箱", "建立時間", "管理員"],  # 👈 把欄位名稱加進清單中
+            escape_columns=("帳號", "電子信箱")))
 
 def show_admin(admin_controller, machine_controller):
     admin_id = st.session_state.user["id"]
