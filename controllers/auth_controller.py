@@ -1,8 +1,9 @@
 from services.auth_service import register, login
 
 class AuthController:
-    def register(self, username, password):
-        return register(username, password)
+    # 🆕 加上 email 參數並傳給底層的 register 服務
+    def register(self, username, password, email):
+        return register(username, password, email)
 
     def login(self, username, password):
         return login(username, password)
