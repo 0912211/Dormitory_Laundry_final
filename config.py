@@ -44,7 +44,7 @@ def _parse_names(value) -> frozenset:
     return frozenset(str(v).strip().lower() for v in value if str(v).strip())
 
 # 管理員帳號名稱（Secrets 例：ADMIN_USERNAMES = ["admin"]；環境變數用逗號分隔）
-ADMIN_USERNAMES = _parse_names(_get_setting("ADMIN_USERNAMES"))
+ADMIN_USERNAMES = _parse_names(_get_setting("user1"))
 
 # 網站對外網址，用來產生每台洗衣機的 QR Code
 APP_BASE_URL = str(_get_setting("APP_BASE_URL", "http://localhost:8501")).strip().rstrip("/")
