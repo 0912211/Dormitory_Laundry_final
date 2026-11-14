@@ -25,7 +25,15 @@ def _get_setting(name, default=None):
     return default if value is None else value
 
 # 可透過環境變數或 Streamlit Secrets 指定雲端 PostgreSQL
+# 可透過環境變數或 Streamlit Secrets 指定雲端 PostgreSQL
 DATABASE_URL = _get_setting("DATABASE_URL")
+
+# 🛡️ 自動防呆：如果讀到的字串包含錯誤參數，直接在程式中修正它！
+if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("requiresslmode=require", "sslmode=require")
+    DATABASE_URL = DATABASE_URL.replace("&channel_binding=require", "")
+    DATABASE_URL = DATABASE_URL.replace("channel_binding=require", "")
+
 if not DATABASE_URL:
     DATABASE_URL = f"sqlite:///{(BASE_DIR / 'database' / 'laundry.db').as_posix()}"
 
