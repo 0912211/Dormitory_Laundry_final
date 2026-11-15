@@ -8,7 +8,10 @@ def _leave():
     st.rerun()
 
 @st.fragment(run_every=REFRESH_INTERVAL)
-def show_machine_page(machine_controller, laundry_controller, reservation_controller):
+def show_machine_page(machine_controller, laundry_controller, reservation_controller, admin_controller=None):
+    """
+    接收 4 個控制參數以符合 main.py 的呼叫習慣，避免引數數量錯誤。
+    """
     machine_id = st.session_state.get("selected_machine_id")
     if not machine_id:
         st.warning("未選擇洗衣機。")
