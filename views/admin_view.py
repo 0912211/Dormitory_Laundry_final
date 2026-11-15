@@ -43,7 +43,7 @@ def _machine_tab(admin_controller, machine_controller, admin_id):
                 st.rerun()
             busy = machine["cycle_status"] in ("washing", "finished")
             if col3.button("強制釋放", key=f"release_{machine['id']}", disabled=not busy, width="stretch",
-                           help="使用者忘了取衣或機器卡住時，結束這台機器目前的洗衣紀錄"):
+                         help="使用者忘了取衣或機器卡住時，結束這台機器目前的洗衣紀錄"):
                 ok, message = admin_controller.force_release(admin_id, machine["id"])
                 set_flash(ok, message)
                 st.rerun()
@@ -87,16 +87,40 @@ def _overview_tab(admin_controller, admin_id):
             escape_columns=("洗衣機", "使用者")))
     else:
         st.info("目前沒有洗衣紀錄。")
-    st.subheader("最近預約（最多 200 筆）")
+
+    st.divider()
+    st.subheader("🧺 各洗衣機即時排隊與候選名單")
+    queue_statuses = admin_controller.get_machines_queue_status(admin_id)
+    if queue_statuses:
+        for m_status in queue_statuses:
+            with st.expander(f"洗衣機：{m_status['machine_name']} ｜ 目前排隊人數：{m_status['queue_count']} 人"):
+                if not m_status['queue_list']:
+                    st.info("目前無人排隊，機台呈現空閒狀態。")
+                else:
+                    queue_data = []
+                    for idx, q in enumerate(m_status['queue_list'], start=1):
+                        status_label = "🔥 已通知可使用" if q['status'] == "notified" else "⏳ 排隊中"
+                        queue_data.append({
+                            "順位": f"第 {idx} 順位",
+                            "使用者": q['username'],
+                            "狀態": status_label,
+                            "加入排隊時間": _fmt(q['created_at'])
+                        })
+                    st.markdown(md_table(queue_data, ["順位", "使用者", "狀態", "加入排隊時間"], escape_columns=("使用者",)))
+    else:
+        st.info("目前沒有洗衣機資料。")
+
+    st.divider()
+    st.subheader("最近排隊紀錄（最多 200 筆）")
     reservations = admin_controller.list_all_reservations(admin_id)
     if reservations:
         st.markdown(md_table([{
-            "洗衣機": r["machine_name"], "使用者": r["username"], "開始": _fmt(r["start_time"]),
-            "結束": _fmt(r["end_time"]), "狀態": RESERVATION_STATUS_TEXT.get(r["status"], r["status"]),
-        } for r in reservations], ["洗衣機", "使用者", "開始", "結束", "狀態"],
+            "洗衣機": r["machine_name"], "使用者": r["username"], "加入排隊時間": _fmt(r["created_at"]),
+            "狀態": RESERVATION_STATUS_TEXT.get(r["status"], r["status"]),
+        } for r in reservations], ["洗衣機", "使用者", "加入排隊時間", "狀態"],
             escape_columns=("洗衣機", "使用者")))
     else:
-        st.info("目前沒有預約。")
+        st.info("目前沒有排隊紀錄。")
 
 def _bars(items):
     """用內建進度條畫長條圖（不依賴 pandas / pyarrow）。"""
@@ -126,15 +150,14 @@ def _users_tab(admin_controller, admin_id):
         st.markdown(md_table([{
             "編號": u["id"], 
             "帳號": u["username"], 
-            "電子信箱": u.get("email") or "未填寫",  # 👈 加上這行，把信箱顯示出來
+            "電子信箱": u.get("email") or "未填寫", 
             "建立時間": _fmt(u["created_at"]),
             "管理員": "是" if u["is_admin"] else "",
-        } for u in users], ["編號", "帳號", "電子信箱", "建立時間", "管理員"],  # 👈 把欄位名稱加進清單中
+        } for u in users], ["編號", "帳號", "電子信箱", "建立時間", "管理員"], 
             escape_columns=("帳號", "電子信箱")))
 
 def show_admin(admin_controller, machine_controller):
     admin_id = st.session_state.user["id"]
-    # 在資料庫端再驗證一次管理員身分，不只靠隱藏選單
     if not admin_controller.is_admin(admin_id):
         st.error("沒有管理員權限。")
         return
