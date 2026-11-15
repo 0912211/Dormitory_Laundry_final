@@ -1,28 +1,24 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import streamlit as st
 from config import GMAIL_USER, GMAIL_APP_PASSWORD
 
 def notify_completion(message: str, recipient_email: str = None) -> None:
-    """顯示頁面內提醒，並自動透過 Gmail 發送通知信給使用者。"""
-    
-    # 1. 顯示 Streamlit 網頁右下角的彈出提示
-    try:
-        st.toast(message, icon="🎉")
-    except Exception as e:
-        print(f"⚠️ [DEBUG] st.toast 顯示失敗: {e}")
+    """
+    純 Email 通知服務：
+    已完全移除網頁端的 st.toast 彈窗，確保畫面 100% 安靜無干擾，所有提醒僅透過 Gmail 發送。
+    """
     
     # 🔍 診斷：印出目前收到的參數狀態
     print(f"🔍 [DEBUG check] 準備寄信檢查 -> recipient_email: '{recipient_email}' | GMAIL_USER: '{GMAIL_USER}' | 密碼長度: {len(GMAIL_APP_PASSWORD) if GMAIL_APP_PASSWORD else 0}")
 
-    # 2. 如果有提供收件者信箱，且後端有設定好 Gmail 帳號與應用程式密碼，就發送郵件
+    # 如果有提供收件者信箱，且後端有設定好 Gmail 帳號與應用程式密碼，就發送郵件
     if recipient_email and GMAIL_USER and GMAIL_APP_PASSWORD:
         try:
             msg = MIMEMultipart()
             msg["From"] = GMAIL_USER
             msg["To"] = recipient_email
-            msg["Subject"] = "🧺 宿舍洗衣完成通知"
+            msg["Subject"] = "🧺 宿舍洗衣系統通知"
             
             # 信件內文
             msg.attach(MIMEText(message, "plain", "utf-8"))
