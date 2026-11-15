@@ -9,8 +9,33 @@ QUEUE_STATUS_TEXT = {
     "cancelled": "已取消"
 }
 
+def notify_queue_notifications(controller, user_id):
+    """
+    安全地檢查當前使用者的排隊狀態：
+    若有任何一台機器的排隊狀態變成 'notified'（輪到您），
+    透過 st.toast 彈出個人化提示，並用 st.session_state 避免重複跳出。
+    """
+    try:
+        reservations = controller.get_user_reservations(user_id)
+        for item in reservations:
+            if item.get("status") == "notified":
+                res_id = item.get("id")
+                # 結合 user_id 與 res_id 產生專屬的 session 鑰匙，絕不跨帳號外洩
+                toast_key = f"queue_toast_user_{user_id}_res_{res_id}"
+                
+                if not st.session_state.get(toast_key, False):
+                    machine_name = item.get("machine_name", "洗衣機")
+                    st.toast(f"🎉 好消息！您排隊的【{machine_name}】已經輪到您囉！請盡快前往使用。", icon="🔔")
+                    st.session_state[toast_key] = True
+    except Exception as e:
+        print(f"⚠️ 排隊通知載入錯誤: {e}")
+
 def show_reservation(controller, machine_controller, only_machine_id=None):
     user = st.session_state.user
+    
+    # 執行個人化排隊到號通知檢查
+    notify_queue_notifications(controller, user["id"])
+    
     machines = [m for m in machine_controller.get_all_machines()
                 if m["is_active"] and (only_machine_id is None or m["id"] == only_machine_id)]
     
@@ -24,7 +49,6 @@ def show_reservation(controller, machine_controller, only_machine_id=None):
     machine_options = []
     machine_map = {}
     for m in machines:
-        # 呼叫控制器取得該機台目前排隊人數
         queue_count = controller.get_queue_count(m["id"])
         label = f"{m['name']} (目前排隊人數: {queue_count} 人)"
         machine_options.append(label)
