@@ -111,16 +111,52 @@ def list_all_reservations(admin_id: int, limit: int = 200):
         names = {m.id: m.name for m in db.scalars(select(Machine)).all()}
         users = {u.id: u.username for u in db.scalars(select(User)).all()}
         
-        # 🆕 改用 created_at 進行排序
         rows = db.scalars(select(Reservation).order_by(Reservation.created_at.desc()).limit(limit)).all()
         
         return [dict(
             id=r.id, 
             machine_name=names.get(r.machine_id, str(r.machine_id)),
             username=users.get(r.user_id, str(r.user_id)), 
-            created_at=r.created_at,  # 🆕 帶入排隊加入時間
+            created_at=r.created_at,  
             status=r.status
         ) for r in rows]
+
+def get_machines_queue_status(admin_id: int):
+    """🆕 取得所有洗衣機目前的排隊人數與詳細名單"""
+    with SessionLocal() as db:
+        if not _is_admin(db, admin_id):
+            return []
+        machines = db.scalars(select(Machine)).all()
+        users = {u.id: u.username for u in db.scalars(select(User)).all()}
+        
+        result = []
+        for m in machines:
+            # 取得該機台所有排隊中 (waiting 或 notified) 的紀錄，依加入時間升冪排序
+            queue_rows = db.scalars(
+                select(Reservation)
+                .where(
+                    Reservation.machine_id == m.id,
+                    Reservation.status.in_(["waiting", "notified"])
+                )
+                .order_by(Reservation.created_at.asc())
+            ).all()
+            
+            queue_list = [{
+                "reservation_id": r.id,
+                "user_id": r.user_id,
+                "username": users.get(r.user_id, str(r.user_id)),
+                "created_at": r.created_at,
+                "status": r.status
+            } for r in queue_rows]
+            
+            result.append({
+                "machine_id": m.id,
+                "machine_name": m.name,
+                "is_active": m.is_active,
+                "queue_count": len(queue_list),
+                "queue_list": queue_list
+            })
+        return result
 
 def usage_stats(admin_id: int):
     """各機器使用次數與各小時開始洗衣次數。"""
@@ -144,6 +180,6 @@ def list_users(admin_id: int):
         users = db.scalars(select(User).order_by(User.id)).all()
         return [dict(id=u.id, 
                      username=u.username, 
-                     email=u.email,  # 保留您原本加上的 email 欄位
+                     email=u.email,  
                      created_at=u.created_at,
                      is_admin=u.username.lower() in ADMIN_USERNAMES) for u in users]
