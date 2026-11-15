@@ -1,7 +1,6 @@
 import streamlit as st
 from config import MIN_WASH_TIME, MAX_WASH_TIME, DEFAULT_WASH_TIME
 from services.timer_service import remaining_seconds, format_remaining
-from services.notification_service import notify_completion
 from views.flash import set_flash
 
 def render_machine_card(machine, user_id, laundry_controller):
@@ -36,10 +35,21 @@ def render_machine_card(machine, user_id, laundry_controller):
                 st.rerun()
 
 def notify_finished_cycles(laundry_controller, user_id):
-    """使用者的洗衣完成時，跳出一次頁面內提醒。"""
-    for cycle in laundry_controller.get_user_active_cycles(user_id):
-        if cycle["status"] == "finished":
-            key = f"notified_{cycle['id']}"
-            if not st.session_state.get(key, False):
-                notify_completion(f"{cycle['machine_name']} 已完成洗衣！")
-                st.session_state[key] = True
+    """
+    使用者的洗衣完成時，透過 st.toast 在畫面右下角跳出個人化提醒，
+    並嚴格綁定 user_id 與 session_state 避免跨帳號干擾或重複彈出。
+    """
+    try:
+        active_cycles = laundry_controller.get_user_active_cycles(user_id)
+        for cycle in active_cycles:
+            if cycle.get("status") == "finished":
+                cycle_id = cycle.get("id")
+                # 🔒 加上 user_id 前綴，確保多裝置、多帳號切換時絕對不會跑錯棚
+                toast_key = f"toast_wash_user_{user_id}_cycle_{cycle_id}"
+                
+                if not st.session_state.get(toast_key, False):
+                    machine_name = cycle.get("machine_name", "洗衣機")
+                    st.toast(f"👕 您的洗衣機（{machine_name}）已經洗好囉！請盡快前往領取。", icon="🔔")
+                    st.session_state[toast_key] = True
+    except Exception as e:
+        print(f"⚠️ 畫面提醒載入錯誤: {e}")
