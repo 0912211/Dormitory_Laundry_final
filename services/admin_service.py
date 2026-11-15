@@ -104,15 +104,23 @@ def list_all_cycles(admin_id: int, limit: int = 200):
                      end_time=r.end_time, status=r.status, collected_at=r.collected_at) for r in rows]
 
 def list_all_reservations(admin_id: int, limit: int = 200):
+    """列出所有排隊紀錄供後台管理檢視（已配合候補排隊制調整）"""
     with SessionLocal() as db:
         if not _is_admin(db, admin_id):
             return []
         names = {m.id: m.name for m in db.scalars(select(Machine)).all()}
         users = {u.id: u.username for u in db.scalars(select(User)).all()}
-        rows = db.scalars(select(Reservation).order_by(Reservation.start_time.desc()).limit(limit)).all()
-        return [dict(id=r.id, machine_name=names.get(r.machine_id, str(r.machine_id)),
-                     username=users.get(r.user_id, str(r.user_id)), start_time=r.start_time,
-                     end_time=r.end_time, status=r.status) for r in rows]
+        
+        # 🆕 改用 created_at 進行排序
+        rows = db.scalars(select(Reservation).order_by(Reservation.created_at.desc()).limit(limit)).all()
+        
+        return [dict(
+            id=r.id, 
+            machine_name=names.get(r.machine_id, str(r.machine_id)),
+            username=users.get(r.user_id, str(r.user_id)), 
+            created_at=r.created_at,  # 🆕 帶入排隊加入時間
+            status=r.status
+        ) for r in rows]
 
 def usage_stats(admin_id: int):
     """各機器使用次數與各小時開始洗衣次數。"""
@@ -136,6 +144,6 @@ def list_users(admin_id: int):
         users = db.scalars(select(User).order_by(User.id)).all()
         return [dict(id=u.id, 
                      username=u.username, 
-                     email=u.email,  # 👈 加上這行，將 email 帶入回傳字典中
+                     email=u.email,  # 保留您原本加上的 email 欄位
                      created_at=u.created_at,
                      is_admin=u.username.lower() in ADMIN_USERNAMES) for u in users]
