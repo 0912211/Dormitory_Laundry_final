@@ -24,6 +24,10 @@ class AdminController:
     def list_all_reservations(self, admin_id):
         return admin_service.list_all_reservations(admin_id)
 
+    def get_machines_queue_status(self, admin_id):
+        """🆕 取得所有洗衣機目前的排隊人數與詳細名單"""
+        return admin_service.get_machines_queue_status(admin_id)
+
     def usage_stats(self, admin_id):
         return admin_service.usage_stats(admin_id)
 
