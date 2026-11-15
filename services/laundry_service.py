@@ -6,7 +6,7 @@ from models.laundry_cycle import LaundryCycle
 from models.reservation import Reservation
 from models.user import User
 from services.clock import now_local
-from services.python_service import notify_completion  # 依您的實際引入調整
+from services.notification_service import notify_completion  # 👈 修正這裡
 
 def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
     now = now_local()
@@ -88,7 +88,6 @@ def get_user_history(user_id: int):
         ) for r in rows]
 
 def update_expired_cycles():
-    """全域掃描：僅負責將時間到的 washing 轉為 finished，並發送一次 Email 通知"""
     now = now_local()
     with SessionLocal() as db:
         rows = db.scalars(select(LaundryCycle).where(
@@ -114,13 +113,10 @@ def update_expired_cycles():
             db.commit()
 
 def get_user_active_cycles(user_id: int):
-    # 執行全域狀態同步更新
     update_expired_cycles()
     with SessionLocal() as db:
-        # 嚴格過濾：只抓取屬於當前登入使用者的行程！
         rows = db.scalars(select(LaundryCycle).where(
-            LaundryCycle.user_id == user_id, 
-            LaundryCycle.status.in_(["washing", "finished"])
+            LaundryCycle.user_id == user_id, LaundryCycle.status.in_(["washing", "finished"])
         )).all()
         names = {m.id: m.name for m in db.scalars(select(Machine)).all()}
         return [dict(
