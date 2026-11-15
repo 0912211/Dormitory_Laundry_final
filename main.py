@@ -55,7 +55,7 @@ with st.sidebar:
     st.subheader("功能選單")
     st.write(f"目前登入：{st.session_state.user['username']}")
     page = st.radio("請選擇功能", pages, key="page", on_change=_leave_machine_page)
-    if st.button("登出", width="stretch"):
+    if st.button("登出", use_container_width=True):
         auth_controller.logout()
         st.session_state.user = None
         st.rerun()
