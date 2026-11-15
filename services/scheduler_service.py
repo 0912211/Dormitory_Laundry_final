@@ -27,12 +27,9 @@ def finish_expired_cycles() -> int:
         )).all()
         
         for cycle in finished_cycles:
-            # 檢查是否有 last_reminder_time 且是否已過 10 分鐘 (600秒)
             if cycle.last_reminder_time and (now - cycle.last_reminder_time) >= timedelta(minutes=10):
                 cycle.last_reminder_time = now  # 更新上次提醒時間
                 send_pickup_reminder(db, cycle, is_first=False)
-
-        # 💡 注意：已改為候補排隊制，排隊紀錄不再有固定的 end_time 與 booked 狀態，故移除舊的預約過期檢查。
 
         if expired_washing or finished_cycles:
             db.commit()
@@ -46,7 +43,6 @@ def send_pickup_reminder(db, cycle, is_first: bool):
     
     if user and user.email:
         app_url = "https://dormitory-laundry.streamlit.app"  
-        
         title_prefix = "🧺 【洗衣完成通知】" if is_first else "⏰ 【取衣提醒】您的衣物尚未領取！"
         
         message = (
@@ -56,6 +52,5 @@ def send_pickup_reminder(db, cycle, is_first: bool):
             f"⚠️ 重要提醒：領取衣物後，請務必登入系統點擊【標記取衣】以釋放洗衣機給其他同學使用！\n\n"
             f"🔗 系統快速連結：{app_url}"
         )
-        
         print(f"📧 [REMINDER] 發送取衣提醒給: {user.email} (是否首次: {is_first})")
         notify_completion(message, recipient_email=user.email)
