@@ -16,7 +16,6 @@ def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
         if not machine or not machine.is_active:
             return False, "這台洗衣機目前無法使用。"
         
-        # 1. 檢查目前機台是否有正在使用或待取衣的行程
         current = db.scalar(select(LaundryCycle).where(
             LaundryCycle.machine_id == machine_id,
             LaundryCycle.status.in_(["washing", "finished"]),
@@ -28,7 +27,7 @@ def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
             if current.status == "finished":
                 return False, "上一位使用者尚未取走衣物。"
 
-        # 2. 候補排隊制檢查：若該機台有人在排隊，檢查該使用者是否為第一順位（或已被通知）
+        # 候補排隊制檢查
         queue_items = db.scalars(select(Reservation).where(
             Reservation.machine_id == machine_id,
             Reservation.status.in_(["waiting", "notified"])
@@ -39,7 +38,6 @@ def start_cycle(user_id: int, machine_id: int, duration_minutes: int):
             if first_in_line.user_id != user_id and not any(q.user_id == user_id and q.status == "notified" for q in queue_items):
                 return False, "此洗衣機目前有其他同學在排隊等候，請先加入排隊。"
             
-            # 若自己是第一順位或被通知者，開始洗衣時將該排隊紀錄設為 completed
             for q in queue_items:
                 if q.user_id == user_id:
                     q.status = "completed"
@@ -59,7 +57,6 @@ def collect_cycle(user_id: int, cycle_id: int):
         cycle.status = "collected"
         cycle.collected_at = now_local()
         
-        # 3. 取衣完成後，自動尋找該機台排隊名單中的下一位，設為 notified 並寄送通知
         next_queue = db.scalar(select(Reservation).where(
             Reservation.machine_id == cycle.machine_id,
             Reservation.status == "waiting"
