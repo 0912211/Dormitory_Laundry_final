@@ -131,7 +131,6 @@ def get_machines_queue_status(admin_id: int):
         
         result = []
         for m in machines:
-            # 取得該機台所有排隊中 (waiting 或 notified) 的紀錄，依加入時間升冪排序
             queue_rows = db.scalars(
                 select(Reservation)
                 .where(
