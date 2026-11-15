@@ -2,7 +2,6 @@ from datetime import timedelta
 from sqlalchemy import select
 from database.db import SessionLocal
 from models.laundry_cycle import LaundryCycle
-from models.reservation import Reservation
 from models.user import User
 from models.machine import Machine
 from services.clock import now_local
@@ -28,21 +27,14 @@ def finish_expired_cycles() -> int:
         )).all()
         
         for cycle in finished_cycles:
-            # 檢查是否有 last_reminder_time 且是否已過 10 分鐘
+            # 檢查是否有 last_reminder_time 且是否已過 10 分鐘 (600秒)
             if cycle.last_reminder_time and (now - cycle.last_reminder_time) >= timedelta(minutes=10):
                 cycle.last_reminder_time = now  # 更新上次提醒時間
                 send_pickup_reminder(db, cycle, is_first=False)
 
-        # 3. 處理預約過期
-        expired_reservations = db.scalars(select(Reservation).where(
-            Reservation.status == "booked",
-            Reservation.end_time <= now,
-        )).all()
-        
-        for reservation in expired_reservations:
-            reservation.status = "expired"
-            
-        if expired_washing or finished_cycles or expired_reservations:
+        # 💡 注意：已改為候補排隊制，排隊紀錄不再有固定的 end_time 與 booked 狀態，故移除舊的預約過期檢查。
+
+        if expired_washing or finished_cycles:
             db.commit()
             
         return len(expired_washing)
@@ -53,7 +45,6 @@ def send_pickup_reminder(db, cycle, is_first: bool):
     machine_name = machine.name if machine else f"機器 #{cycle.machine_id}"
     
     if user and user.email:
-        # 💡 請將這裡替換成你實際部署在 Streamlit Cloud 上的網址
         app_url = "https://dormitory-laundry.streamlit.app"  
         
         title_prefix = "🧺 【洗衣完成通知】" if is_first else "⏰ 【取衣提醒】您的衣物尚未領取！"
