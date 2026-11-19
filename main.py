@@ -17,6 +17,7 @@ from views.flash import show_flash
 
 st.set_page_config(page_title=APP_NAME, page_icon="🧺", layout="wide")
 
+
 @st.cache_resource
 def initialize_database():
     Base.metadata.create_all(bind=engine)
@@ -24,6 +25,7 @@ def initialize_database():
         if db.query(Machine).count() == 0:
             db.add_all([Machine(name=f"洗衣機 {i}") for i in range(1, DEFAULT_MACHINE_COUNT + 1)])
             db.commit()
+
 
 initialize_database()
 
@@ -44,9 +46,11 @@ reservation_controller = ReservationController()
 laundry_controller = LaundryController()
 admin_controller = AdminController()
 
+
 def _leave_machine_page():
     # 從單機頁面（QR Code 網址）切換到側邊欄功能時，清除網址參數
     st.query_params.clear()
+
 
 is_admin = bool(st.session_state.user.get("is_admin"))
 pages = ["首頁", "洗衣機狀態", "預約洗衣", "洗衣紀錄"] + (["後台管理"] if is_admin else [])
@@ -55,6 +59,12 @@ with st.sidebar:
     st.subheader("功能選單")
     st.write(f"目前登入：{st.session_state.user['username']}")
     page = st.radio("請選擇功能", pages, key="page", on_change=_leave_machine_page)
+
+    # 🔄 僅刷新當前頁面：同步最新狀態並重跑畫面，保留 st.session_state.user 與目前分頁/網址參數
+    if st.button("🔄 重新整理頁面", use_container_width=True):
+        laundry_controller.update_expired_cycles()
+        st.rerun()
+
     if st.button("登出", use_container_width=True):
         auth_controller.logout()
         st.session_state.user = None
@@ -87,3 +97,12 @@ elif page == "後台管理":
 
 st.divider()
 st.caption(f"Python 程式語言期末專題｜{APP_NAME} v{APP_VERSION}")
+```[cite: 2]
+
+---
+
+### 💡 說明
+* 按下 **「🔄 重新整理頁面」** 時，會先執行 `laundry_controller.update_expired_cycles()` 更新洗衣與預約狀態，再呼叫 `st.rerun()` 重新渲染畫面[cite: 2]。
+* 因為沒有清空 `st.session_state.user`，也沒有清除 `st.session_state["page"]` 或 `st.query_params`，所以登入狀態與你目前所在的分頁（或單機 QR Code 頁面）都會完整保留[cite: 2]。
+
+你也可以在 🧺 [期末報告](https://gemini.google.com/notebook/3aeb146e-fa6a-41ce-8c13-c301aa8fce60) 知識庫中隨時查閱這份主程式版本[cite: 2]。需要再調整其他頁面的刷新按鈕或元件嗎？
