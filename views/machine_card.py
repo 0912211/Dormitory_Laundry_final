@@ -1,6 +1,7 @@
 import streamlit as st
 from config import MIN_WASH_TIME, MAX_WASH_TIME, DEFAULT_WASH_TIME
 from services.timer_service import remaining_seconds, format_remaining
+from services.notification_service import notify_completion
 from views.flash import set_flash
 
 def render_machine_card(machine, user_id, laundry_controller):
@@ -34,4 +35,11 @@ def render_machine_card(machine, user_id, laundry_controller):
                 set_flash(ok, msg)
                 st.rerun()
 
-# 🚫 已經將前端彈窗函式完整移除，全面改由後端 Email 負責通知！
+def notify_finished_cycles(laundry_controller, user_id):
+    """使用者的洗衣完成時，跳出一次頁面內提醒。"""
+    for cycle in laundry_controller.get_user_active_cycles(user_id):
+        if cycle["status"] == "finished":
+            key = f"notified_{cycle['id']}"
+            if not st.session_state.get(key, False):
+                notify_completion(f"{cycle['machine_name']} 已完成洗衣！")
+                st.session_state[key] = True
