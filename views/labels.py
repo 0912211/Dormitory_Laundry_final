@@ -6,6 +6,9 @@ CYCLE_STATUS_TEXT = {
 }
 
 RESERVATION_STATUS_TEXT = {
+    "waiting": "排隊中",
+    "notified": "已通知可洗衣",
+    "completed": "已完成排隊",
     "booked": "已預約",
     "cancelled": "已取消",
     "expired": "已過期",
